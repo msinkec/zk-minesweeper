@@ -1,0 +1,89 @@
+import "verifier.scrypt";
+
+
+// TODO: Make reward amount fixed.
+
+contract Minesweeper {
+    
+    static const int MINE_COUNT = 32;
+
+    PubKey player;
+    PubKey server;
+
+    int mineFieldCommit;
+
+    @state
+    int successfulReveals;
+
+    @state
+    bool playersTurn;
+    
+    @state
+    int lastRevealX;
+    @state
+    int lastRevealY;
+
+    public function update(
+            Sig sig,
+            bool isMine,
+            int neighborMineCount,
+            Proof proof,
+            int amount,
+            SigHashPreimage txPreimage) {
+
+        require(this.playersTurn == false);
+        this.playersTurn = true;
+
+        require(checkSig(sig, this.server));
+
+        require(
+            ZKSNARK.verify(
+                [this.mineFieldCommit, 
+                 this.lastRevealX, this.lastRevealY, 
+                 isMine ? 1 : 0, 
+                 neighborMineCount],
+            proof)
+        );
+
+        // If player revealed a field without a mine, increase his score.
+        if (!isMine) {
+            this.successfulReveals++;
+        }
+        bytes outputs = b'';
+        if (this.successfulReveals >= 15 * 15 - MINE_COUNT) {
+            // Pay player if he revealed all the empty fields.
+            bytes script = Utils.buildPublicKeyHashScript(hash160(this.player));
+            outputs = Utils.buildOutput(script, amount);
+        } else if (isMine) {
+            // Pay server if player hit a mine.
+            bytes script = Utils.buildPublicKeyHashScript(hash160(this.server));
+            outputs = Utils.buildOutput(script, amount);
+        } else {
+            // Continue game.
+            bytes outputScript = this.getStateScript();
+            outputs = Utils.buildOutput(outputScript, amount);
+        }
+
+        // Make sure the transaction contains the expected outputs.
+        require(Tx.checkPreimage(txPreimage));
+        require(hash256(outputs) == SigHash.hashOutputs(txPreimage));
+    }
+    
+    public function reveal(Sig sig, int x, int y, int amount, SigHashPreimage txPreimage) {
+        require(this.playersTurn == true);
+        this.playersTurn = false;
+
+        require(checkSig(sig, this.player));
+
+        require(x >= 0 && x < 15);
+        require(y >= 0 && y < 15);
+        this.lastRevealX = x;
+        this.lastRevealY = y;
+
+        require(Tx.checkPreimage(txPreimage));
+        bytes outputScript = this.getStateScript();
+        bytes outputs = Utils.buildOutput(outputScript, amount);
+        require(hash256(outputs) == SigHash.hashOutputs(txPreimage));
+    }
+
+}

@@ -1,0 +1,65 @@
+.Game {
+  display: flex;
+  justify-content: space-between;
+}
+
+.fields {
+  display: grid;
+  gap: 0;
+}
+
+.aside {
+  min-width: 200px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.button {
+  display: block;
+  width: 100%;
+  height: 40px;
+  margin-bottom: 5px;
+  color: var(--text-primary-color);
+  background-color: var(--button-bg-color);
+  border: 2px solid var(--button-border-color);
+  font-size: 14px;
+  border-radius: 6px;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 200ms;
+}
+
+.button:hover {
+  background-color: var(--button-bg-hover-color);
+}
+
+.button:active {
+  background-color: var(--button-bg-active-color);
+}
+
+.button:last-child {
+  margin-bottom: 0;
+}
+
+.button.buttonGitHub {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.button.buttonGitHub .githubIcon {
+  margin-right: 5px;
+  width: 20px;
+  height: 20px;
+}
+
+.stats {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  text-align: center;
+}

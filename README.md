@@ -1,5 +1,9 @@
 # ZK Minesweeper
 
+An implementation of the popular Minesweeper game as a smart contract for the Bitcoin blockchain. ZK-SNARKS are used to keep information (i.e. mine locations) hidden.
+
+> :warning: **Disclaimer**: This is a demo implementation. Currently both the players and game server logic run on the same client, namely the browser. In a production ready implementation the two should be separated.
+
 # Setup
 
 Install **sCrypt Compiler**:

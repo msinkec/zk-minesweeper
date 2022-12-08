@@ -38,7 +38,7 @@ def getNeighboringMineCount(bool[256] mineFieldBits, u32 x, u32 y) -> u32 {
     u32 lc = (idxLowerCenter != 99999) && mineFieldBits[255 - idxLowerCenter] ? 1 : 0;
     u32 lr = (idxLowerRight != 99999) && mineFieldBits[255 - idxLowerRight] ? 1 : 0;
 
-    return ul + uc + ur+ ml + mr + ll + lc + lr;
+    return ul + uc + ur + ml + mr + ll + lc + lr;
 }
 
 def main(private field mineField, field mineFieldCommit, field targetX, field targetY, bool mineHit, field neighborMineCount) {
@@ -56,8 +56,7 @@ def main(private field mineField, field mineFieldCommit, field targetX, field ta
     assert(getMineCount(mineFieldBits) == 32);
 
     // Check if target field is in range. (15 x 15 mine field).
-    // TODO: assertion failed: res.len() <= to (/home/runner/work/zokrates/zokrates/zokrates_core/src/flatten/mod.rs:1909:21)
-    //assert(x >= 0 && x <= 14 && y >= 0 && y <= 14);
+    assert(x >= 0 && x < 15 && y >= 0 && y < 15);
 
     // Check if target contains a mine.
     assert(mineHit == isMineHit(mineFieldBits, x, y));

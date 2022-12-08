@@ -1,10 +1,13 @@
-const { expect } = require('chai');
+import { expect } from 'chai';
 
+import * as fs from 'fs';
+import * as path from 'path';
 
-const { buildContractClass, bsv, PubKeyHash, toHex, Int, getPreimage, PubKey, Bool, signTx } = require('scryptlib');
+import { buildContractClass, bsv, PubKeyHash, toHex, Int, getPreimage, PubKey, Bool, signTx } from 'scryptlib';
 
-const { loadDesc, newTx, inputSatoshis } = require('../helper');
-const { mineFieldMimc, zokratesProof, mineFieldArrToInt } = require('../src/zk');
+import { loadDesc, newTx, inputSatoshis } from '../helper';
+import { mineFieldMimc, zokratesProof, mineFieldArrToInt } from '../src/zk';
+
 
 const privateKeyPlayer = new bsv.PrivateKey.fromRandom('testnet')
 const publicKeyPlayer = bsv.PublicKey.fromPrivateKey(privateKeyPlayer)
@@ -30,6 +33,9 @@ const mineFieldArr = [
   0,0,0,0,1,0,0,0,0,0,0,0,0,1,1,
 ];
 
+const Signature = bsv.crypto.Signature;
+const sighashType = Signature.SIGHASH_ANYONECANPAY | Signature.SIGHASH_SINGLE | Signature.SIGHASH_FORKID;
+
 describe('Test sCrypt contract Minesweeper In Javascript', () => {
   let mineField, mineFieldCommit, minesweeper, result
 
@@ -45,7 +51,8 @@ describe('Test sCrypt contract Minesweeper In Javascript', () => {
       new Int(mineFieldCommit), 
       0,
       new Bool(true),
-      0, 0
+      0, 0,
+      inputSatoshis
     );
   });
 
@@ -54,7 +61,7 @@ describe('Test sCrypt contract Minesweeper In Javascript', () => {
     // smart contract requires him to.
     let x = 3;
     let y = 5;
-    newStates = {
+    let newStates = {
       successfulReveals: 0,
       playersTurn: false,
       lastRevealX: x,
@@ -69,7 +76,7 @@ describe('Test sCrypt contract Minesweeper In Javascript', () => {
     }))
 
     let sig = signTx(tx, privateKeyPlayer, minesweeper.lockingScript, inputSatoshis)
-    let preimage = getPreimage(tx, minesweeper.lockingScript, inputSatoshis);
+    let preimage = getPreimage(tx, minesweeper.lockingScript, inputSatoshis, 0, sighashType);
     let context = { tx, inputIndex: 0, inputSatoshis: inputSatoshis };
 
     const Proof = minesweeper.getTypeClassByType("Proof");
@@ -77,7 +84,7 @@ describe('Test sCrypt contract Minesweeper In Javascript', () => {
     const G2Point = minesweeper.getTypeClassByType("G2Point");
     const FQ2 = minesweeper.getTypeClassByType("FQ2");
 
-    result = minesweeper.reveal(sig, x, y, inputSatoshis, preimage).verify(context);
+    result = minesweeper.reveal(sig, x, y, preimage).verify(context);
     expect(result.success, result.error).to.be.true;
     
     // Save the new state.
@@ -96,7 +103,18 @@ describe('Test sCrypt contract Minesweeper In Javascript', () => {
     let isMine = false;        // In a real application this is determined dynamically. Here for testing purposes we know that
                                // the field doesn't hide a mine and that it has 3 neighboring mines.
     let neighborMineCount = 3;
-    let {proof, output} = await zokratesProof(mineField, mineFieldCommit, x, y, isMine, neighborMineCount);
+    
+    // TODO: move to before()
+    const program = fs.readFileSync(path.join(__dirname, '../circuits', 'out'));
+    let abi = JSON.parse(fs.readFileSync(path.join(__dirname, '../circuits', 'abi.json')).toString());
+    const provingkey = fs.readFileSync(path.join(__dirname, '../circuits', 'proving.key')).toJSON().data
+    let compilerOut = {
+      program: program,
+      abi: abi,
+      provingkey: provingkey
+    }
+
+    let {proof, output} = await zokratesProof(mineField, mineFieldCommit, x, y, isMine, neighborMineCount, compilerOut);
     
     newStates = {
       successfulReveals: 1, // Increment score since (3, 5) is not a mine.
@@ -110,9 +128,10 @@ describe('Test sCrypt contract Minesweeper In Javascript', () => {
       script: minesweeper.getNewStateScript(newStates),
       satoshis: inputSatoshis
     }))
+    
 
     sig = signTx(tx, privateKeyServer, minesweeper.lockingScript, inputSatoshis)
-    preimage = getPreimage(tx, minesweeper.lockingScript, inputSatoshis);
+    preimage = getPreimage(tx, minesweeper.lockingScript, inputSatoshis, 0, sighashType);
     context = { tx, inputIndex: 0, inputSatoshis: inputSatoshis };
 
     result = minesweeper.update(sig, isMine, neighborMineCount, new Proof({
@@ -134,7 +153,7 @@ describe('Test sCrypt contract Minesweeper In Javascript', () => {
         x: new Int(proof.proof.c[0]),
         y: new Int(proof.proof.c[1]),
       })
-    }), inputSatoshis, preimage).verify(context);
+    }), preimage).verify(context);
     expect(result.success, result.error).to.be.true;
 
   }).timeout(2000000);;

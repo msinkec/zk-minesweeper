@@ -2,11 +2,10 @@
 import { buildMimc7 } from './mimc7';
 
 const { initialize } = require('zokrates-js');
-const fs = require('fs');
 const path = require('path');
 
 
-export async function zokratesProof(mineField, mineFieldCommit, x, y, mineHit, neighborMineCount) {
+export async function zokratesProof(mineField, mineFieldCommit, x, y, mineHit, neighborMineCount, compilerOut) {
 
   const defaultProvider = await initialize();
 
@@ -16,14 +15,11 @@ export async function zokratesProof(mineField, mineFieldCommit, x, y, mineHit, n
     scheme: "g16"
   });
 
-  const program = fs.readFileSync(path.join(__dirname, '../circuits', 'out'));
-  let abi = JSON.parse(fs.readFileSync(path.join(__dirname, '../circuits', 'abi.json')).toString());
-
   // computation
   const { witness, output } = zokratesProvider.computeWitness(
     {
-      program: program,
-      abi: abi
+      program: compilerOut.program,
+      abi: compilerOut.abi
     },
     [ mineField.toString(),
       mineFieldCommit.toString(),
@@ -32,15 +28,7 @@ export async function zokratesProof(mineField, mineFieldCommit, x, y, mineHit, n
       neighborMineCount.toString()]
   );
 
-  const provingkey = fs.readFileSync(path.join(__dirname, '../circuits', 'proving.key')).toJSON().data
-
-  const proof = zokratesProvider.generateProof(program, witness, provingkey);
-
-  // or verify off-chain
-  //const verificationkey = JSON.parse(fs.readFileSync(path.join(__dirname, 'circuits', 'verification.key')).toString())
-  //const isVerified = zokratesProvider.verify(verificationkey, proof);
-
-  //console.log('zokrates isVerified:' + isVerified)
+  const proof = zokratesProvider.generateProof(compilerOut.program, witness, compilerOut.provingkey);
 
   return {
     proof,

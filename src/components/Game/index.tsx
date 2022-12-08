@@ -68,10 +68,11 @@ export default function Game() {
       {/* <Settings level={settings.level} onLevelChange={setSettingsByLevel} /> */}
       <Panel className={style.Game}>
         <section className={style.fields} style={fieldsStyle}>
-          {Array.from(fields.values()).map((field) => (
+          {Array.from(fields.map.values()).map((field) => (
             <Field
               key={field.id}
               field={field}
+              fieldsMap={fields}
               gameState={gameState}
               onOpen={onFieldOpen}
               onSetFlag={setFlag}

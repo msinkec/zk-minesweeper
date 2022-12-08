@@ -3,6 +3,7 @@ import { callContractRevealFunc } from '../smartContract';
 import { GameData } from '../storage';
 import {IField, FieldsMap, FieldCoords, ISettings} from '../types';
 import {randomNumber} from '../utils/helpers';
+import { mineFieldArrToInt, mineFieldMimc } from '../zk';
 
 // Debug cycles counter
 let cycles = 0;
@@ -14,7 +15,12 @@ function coordsToKey([x, y]: FieldCoords): string {
 
 export default function useGame(settings: ISettings) {
   // Array of game fields
-  const [fields, setFields] = useState<FieldsMap>(new Map());
+  const [fields, setFields] = useState<FieldsMap>({
+      map: new Map(),
+      mapInt: BigInt(0),
+      mapCommit: "",
+      mapMineCount: 0,
+    });
   // Array of game fields which has been opened
   const [fieldsOpened, setFieldsOpened] = useState<number>(0);
   // Flags count
@@ -51,13 +57,18 @@ export default function useGame(settings: ISettings) {
   );
 
   const generateEmptyFields = useCallback((): FieldsMap => {
-    const fields: FieldsMap = new Map();
+    const fields: FieldsMap = {
+      map: new Map(),
+      mapInt: BigInt(0),
+      mapCommit: "",
+      mapMineCount: 0,
+    };
 
     for (let y = 0; y < settings.yFieldsCount; y++) {
       for (let x = 0; x < settings.xFieldsCount; x++) {
         cycles += 1;
         const coords: FieldCoords = [x + 1, y + 1];
-        fields.set(coordsToKey(coords), {
+        fields.map.set(coordsToKey(coords), {
           id: x + 1 + settings.xFieldsCount * y,
           coords,
           isOpened: false,
@@ -72,18 +83,43 @@ export default function useGame(settings: ISettings) {
   }, [settings]);
 
   const generateFieldsWithBombs = useCallback(
-    (firstClicked: IField): FieldsMap => {
+    async (): Promise<FieldsMap> => {
       const fields: FieldsMap = generateEmptyFields();
       const fieldsWithBombsIds: Set<number> = new Set();
-
-      let game = GameData.get()
+      
+      // TODO: Make random.
+      const mineFieldArr = [ 
+        0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,
+        0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,
+        0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,
+        0,0,0,0,1,0,0,1,0,0,0,1,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,
+        0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,1,0,0,0,1,0,1,0,0,
+        0,0,1,1,1,1,0,0,0,0,0,0,0,1,0,
+        0,1,0,0,0,0,1,0,0,0,0,1,1,0,0,
+        0,0,0,0,1,0,0,0,0,0,0,0,0,1,1,
+      ];
+      let mineCount = 32;
+      let mineFieldInt = await mineFieldArrToInt(mineFieldArr);
+      let mineFieldCommit = await mineFieldMimc(mineFieldInt);
+      
+      fields.mapInt = mineFieldInt;
+      fields.mapCommit = mineFieldCommit;
+      fields.mapMineCount = 32;
+      
       for (let i = 0; i < 15*15; i++) {
-        if (game.mineFieldArr[i] == 1) {
+        if (mineFieldArr[i] == 1) {
           fieldsWithBombsIds.add(i + 1);
         }
       }
 
-      for (const field of fields.values()) {
+      for (const field of fields.map.values()) {
         cycles += 1;
         field.hasBomb = fieldsWithBombsIds.has(field.id);
 
@@ -92,7 +128,7 @@ export default function useGame(settings: ISettings) {
             // eslint-disable-next-line no-loop-func
             .map((coords) => {
               cycles += 1;
-              return fields.get(coordsToKey(coords));
+              return fields.map.get(coordsToKey(coords));
             })
             // eslint-disable-next-line no-loop-func
             .forEach((field) => {
@@ -115,7 +151,7 @@ export default function useGame(settings: ISettings) {
       let deletedFlags = 0;
 
       // Open currently clicked field
-      const clickedFieldToOpen = fields.get(coordsToKey(clickedField.coords));
+      const clickedFieldToOpen = fields.map.get(coordsToKey(clickedField.coords));
 
       if (clickedFieldToOpen) {
         clickedFieldToOpen.isOpened = true;
@@ -125,8 +161,8 @@ export default function useGame(settings: ISettings) {
       if (deletedFlags) {
         setFlagsCount(flagsCount - deletedFlags);
       }
-
-      setFields(new Map(fields));
+      
+      setFields(fields);
       setFieldsOpened(fieldsOpened + opened);
     },
     [findCoordsAround, fieldsOpened, flagsCount],
@@ -134,7 +170,7 @@ export default function useGame(settings: ISettings) {
 
   const openFieldWithBombsAround = useCallback(
     (clickedField: IField): void => {
-      for (const field of fields.values()) {
+      for (const field of fields.map.values()) {
         cycles += 1;
         if (clickedField.id === field.id) {
           field.isOpened = true;
@@ -142,7 +178,8 @@ export default function useGame(settings: ISettings) {
         }
       }
 
-      setFields(new Map(fields));
+      //setFields(new Map(fields));
+      setFields(fields);
       setFieldsOpened(fieldsOpened + 1);
     },
     [fields, fieldsOpened],
@@ -150,7 +187,7 @@ export default function useGame(settings: ISettings) {
 
   const openAllBombs = useCallback((): void => {
     let opened = 0;
-    for (const field of fields.values()) {
+    for (const field of fields.map.values()) {
       cycles += 1;
       if (field.hasBomb) {
         field.isOpened = true;
@@ -161,12 +198,13 @@ export default function useGame(settings: ISettings) {
       }
     }
 
-    setFields(new Map(fields));
+    //setFields(new Map(fields));
+    setFields(fields);
   }, [fields, settings]);
 
   const setFlagValue = useCallback(
     (clickedField: IField, value: boolean) => {
-      for (const field of fields.values()) {
+      for (const field of fields.map.values()) {
         cycles += 1;
         if (clickedField.id === field.id) {
           field.hasFlag = value;
@@ -174,66 +212,32 @@ export default function useGame(settings: ISettings) {
         }
       }
 
-      setFields(new Map(fields));
+      //setFields(new Map(fields));
+      setFields(fields);
       setFlagsCount(value ? flagsCount + 1 : flagsCount - 1);
     },
     [fields, flagsCount],
   );
 
   // Public methods
-  const initFields = useCallback(() => {
-    setFields(generateEmptyFields());
+  const initFields = useCallback(async () => {
+    setFields(await generateFieldsWithBombs());
     setFieldsOpened(0);
     setFlagsCount(0);
-  }, [generateEmptyFields]);
+  }, [generateFieldsWithBombs]);
 
   // Main public handler for field click
   const openField = useCallback(
     async (clickedField: IField) => {
-      // TODO: broadcast contract update here
-      // 
-      
-      console.log("TEST");
-      console.log(clickedField);
-      console.log(fields);
-
-      let game = GameData.get()
-      
-      let x = clickedField.coords[0] - 1;
-      let y = clickedField.coords[1] - 1;
-      let idx = y*15 + x;
-  
-      let hasBomb = game.mineFieldArr[idx] == 1;
-
-      let coordsAround = findCoordsAround(clickedField.coords);
-      let minesAround = coordsAround.map((coords) => { return game.mineFieldArr[(coords[1] - 1) *15 + (coords[0] - 1)]})
-                      .reduce((a, b) => a + b, 0);
-
 
       if (clickedField.isOpened) {
-        return;
-      }
-
-      // Call reveal function of the smart contract
-      //await callContractRevealFunc(x, y, hasBomb, minesAround);
-      
-      if (hasBomb) {
-        minesAround += 1;
-        // Finish contract
-      } else {
-        // Update contract proving number of neighbor bombs
-        // TDOO: call update func
+        return; // Don't do anything if the field is already opened
       }
         
-      // TODO: instead of generating field here, get it from storage
       if (clickedField.hasBomb) {
-        // Handle click on field with bomb
+        // Handle click on field with bomb.
+        // Show all bombs. Game (also contract) will be finished before already.
         openAllBombs();
-      } else if (fieldsOpened === 0) {
-        // Handle first click.
-        // Regenerate fields with bombs and then open fields around first clicked field.
-        // The first click in any game will never be a mine.
-        openEmptyFields(clickedField, generateFieldsWithBombs(clickedField));
       } else if (clickedField.bombsAround === 0) {
         // Handle click on empty field and open fields around it.
         openEmptyFields(clickedField, fields);

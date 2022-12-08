@@ -133,7 +133,8 @@ export class SensiletWallet extends wallet {
     let address = await this.sensilet.getAddress();
     console.log(SensiletWallet.DEBUG_TAG, 'listUnspent', address)
     return Gorillapool.listUnspent(address).then(res => {
-      return res.data.filter((utxo: any) => utxo.value >= minAmount).map((utxo: any) => {
+      let filtered = res.data.filter((utxo: any) => utxo.value >= minAmount);
+      let ret = filtered.map((utxo: any) => {
         return {
           txId: utxo.tx_hash,
           outputIndex: utxo.tx_pos,
@@ -141,6 +142,7 @@ export class SensiletWallet extends wallet {
           script: bsv.Script.buildPublicKeyHashOut(address).toHex(),
         } as UTXO;
       });
+      return ret;
     });
   }
 

@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useState} from 'react';
-import {GameState, IField, SettingsLevel} from '../types';
+import {FieldsMap, GameState, IField, SettingsLevel} from '../types';
 import {formatSeconds} from '../utils/helpers';
 import useSettings from './useSettings';
 import useGame from './useGame';
@@ -7,7 +7,7 @@ import useInterval from './useInterval';
 
 import { Network, SensiletWallet, web3 } from '../web3';
 import { mineFieldArrToInt, mineFieldMimc } from '../zk';
-import { initializeContract } from '../smartContract';
+import { callContractRevealFunc, callContractUpdateFunc, initializeContract } from '../smartContract';
 import { GameData, ContractUtxos } from '../storage';
 
 export default function useGameController() {
@@ -39,41 +39,8 @@ export default function useGameController() {
       }
 
       web3.setWallet(new SensiletWallet(n));
-      
-      // TODO: init contract here. Generate field and store it in local storage
-      // TODO: make random
-      const mineFieldArr = [ 
-        0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,
-        0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,
-        0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,
-        0,0,0,0,1,0,0,1,0,0,0,1,0,0,0,
-        0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,
-        0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,
-        0,0,1,0,0,0,1,0,0,0,1,0,1,0,0,
-        0,0,1,1,1,1,0,0,0,0,0,0,0,1,0,
-        0,1,0,0,0,0,1,0,0,0,0,1,1,0,0,
-        0,0,0,0,1,0,0,0,0,0,0,0,0,1,1,
-      ];
-      let mineFieldInt = await mineFieldArrToInt(mineFieldArr);
-      let mineFieldCommit = await mineFieldMimc(mineFieldInt);
-      
-      let game = {
-          mineFieldArr: mineFieldArr,
-          mineFieldInt: mineFieldInt.toString(),
-          mineFieldCommit: mineFieldCommit.toString()
-      }
-      GameData.set(game);
-      
-      await initializeContract();
 
-      console.log(ContractUtxos.get());
-
-      initFields();
+      await initFields();
       setTimer(0);
       setGameState(GameState.Idle);
     } else {
@@ -89,16 +56,41 @@ export default function useGameController() {
   const pause = useCallback(() => {
     setGameState(GameState.Pause);
   }, []);
-
+  
   const onFieldOpen = useCallback(
-    (clickedField: IField) => {
+    async (clickedField: IField, fieldsMap: FieldsMap) => {
+      if (clickedField.isOpened) {
+        return; // Don't do anything if the field is already opened
+      }
+      
+      if (fieldsOpened === 0) {
+        // If it's the first click, initialize the smart contract itself.
+        console.log("initing smart contract");
+        try {
+          await initializeContract(fieldsMap);
+          // Set game state to `Playing`
+          setGameState(GameState.Playing);
+        } catch (error) {
+          console.log("Failed initializing smart contract.")
+          console.log(error);
+          return;
+        }
+      }
+      
+      // As the player clicked, we do a reveal call on the initialized smart contrat.
+      console.log("player update");
+      await callContractRevealFunc(clickedField, fieldsMap);
+      
       if (clickedField.hasBomb) {
         // Handle click on field with bomb
+        // TODO: finish smart contract here and pay to player on server.
+        console.log("finishing smart contract");
         setGameState(GameState.GameOver);
-      } else if (fieldsOpened === 0) {
-        // Handle first click.
-        // Set game state to `Playing`
-        setGameState(GameState.Playing);
+      } else {
+        console.log("server updating smart contract");
+        // Once the players reveal function was called, the server updates the game state
+        // of the smart contract.
+        await callContractUpdateFunc(clickedField, fieldsMap);
       }
 
       // Open field with `useGame` handler

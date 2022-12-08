@@ -1,19 +1,20 @@
 import React, {useCallback} from 'react';
 import cn from 'classnames';
-import {GameState, IField} from '../../types';
+import {FieldsMap, GameState, IField} from '../../types';
 
 import style from './style.module.css';
 
 interface IProps {
   field: IField;
+  fieldsMap: FieldsMap;
   isSmall: boolean;
   gameState: GameState;
-  onOpen: (field: IField) => void;
-  onSetFlag: (field: IField) => void;
-  onDeleteFlag: (field: IField) => void;
+  onOpen: (field: IField, fieldsMap: FieldsMap) => void;
+  onSetFlag: (field: IField, fieldsMap: FieldsMap) => void;
+  onDeleteFlag: (field: IField, fieldsMap: FieldsMap) => void;
 }
 
-function Field({field, isSmall, gameState, onOpen, onSetFlag, onDeleteFlag}: IProps) {
+function Field({field, fieldsMap, isSmall, gameState, onOpen, onSetFlag, onDeleteFlag}: IProps) {
   const isDisabled = gameState === GameState.Pause || gameState === GameState.GameOver;
   let label: number | string = '';
 
@@ -43,9 +44,9 @@ function Field({field, isSmall, gameState, onOpen, onSetFlag, onDeleteFlag}: IPr
   // Handlers
   const handleClick = useCallback(() => {
     if (!field.hasFlag) {
-      onOpen(field);
+      onOpen(field, fieldsMap);
     }
-  }, [field, onOpen]);
+  }, [field, fieldsMap, onOpen]);
 
   const handleContextMenuClick = useCallback(
     (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
@@ -54,13 +55,13 @@ function Field({field, isSmall, gameState, onOpen, onSetFlag, onDeleteFlag}: IPr
 
       if (gameState === GameState.Playing && !field.isOpened) {
         if (field.hasFlag) {
-          onDeleteFlag(field);
+          onDeleteFlag(field, fieldsMap);
         } else {
-          onSetFlag(field);
+          onSetFlag(field, fieldsMap);
         }
       }
     },
-    [field, onSetFlag, onDeleteFlag, gameState],
+    [field, fieldsMap, onSetFlag, onDeleteFlag, gameState],
   );
 
   return (

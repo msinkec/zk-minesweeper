@@ -1,5 +1,10 @@
 export type FieldCoords = [number, number];
-export type FieldsMap = Map<string, IField>;
+export type FieldsMap = {
+  map: Map<string, IField>;
+  mapInt: BigInt;
+  mapCommit: string; 
+  mapMineCount: number;
+}
 
 export interface IField {
   id: number;

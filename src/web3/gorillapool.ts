@@ -36,7 +36,7 @@ export class Gorillapool {
                 timeout: time,
                 maxBodyLength: Infinity
             });
-        
+            
             const payload = JSON.parse(data.payload)
             if(payload.returnResult === 'success') {
                 return payload.txid;
@@ -66,6 +66,7 @@ export class Gorillapool {
     }
 
     static async listUnspent(address: string): Promise<any> {
+        console.log(`${Gorillapool.API_PREFIX}/address/${address}/unspent`);
         return axios.get(`${Gorillapool.API_PREFIX}/address/${address}/unspent`, {
             timeout: 30000
         });

@@ -1,8 +1,6 @@
 import "verifier.scrypt";
 
 
-// TODO: Make reward amount fixed.
-
 contract Minesweeper {
     
     static const int MINE_COUNT = 32;
@@ -22,13 +20,14 @@ contract Minesweeper {
     int lastRevealX;
     @state
     int lastRevealY;
+    
+    int rewardAmount;
 
     public function update(
             Sig sig,
             bool isMine,
             int neighborMineCount,
             Proof proof,
-            int amount,
             SigHashPreimage txPreimage) {
 
         require(this.playersTurn == false);
@@ -53,23 +52,27 @@ contract Minesweeper {
         if (this.successfulReveals >= 15 * 15 - MINE_COUNT) {
             // Pay player if he revealed all the empty fields.
             bytes script = Utils.buildPublicKeyHashScript(hash160(this.player));
-            outputs = Utils.buildOutput(script, amount);
+            outputs = Utils.buildOutput(script, this.rewardAmount);
         } else if (isMine) {
             // Pay server if player hit a mine.
             bytes script = Utils.buildPublicKeyHashScript(hash160(this.server));
-            outputs = Utils.buildOutput(script, amount);
+            outputs = Utils.buildOutput(script, this.rewardAmount);
         } else {
             // Continue game.
             bytes outputScript = this.getStateScript();
-            outputs = Utils.buildOutput(outputScript, amount);
+            outputs = Utils.buildOutput(outputScript, this.rewardAmount);
         }
 
+        //// The custom sighash type is to enably arbitrary funding of the contracts propagation.
+        //// Note: make sure the offline code to generate the preimage also aplies these flags.
+        SigHashType sigHashType = SigHash.ANYONECANPAY | SigHash.SINGLE | SigHash.FORKID;
+        require(Tx.checkPreimageSigHashType(txPreimage, sigHashType));
+
         // Make sure the transaction contains the expected outputs.
-        require(Tx.checkPreimage(txPreimage));
         require(hash256(outputs) == SigHash.hashOutputs(txPreimage));
     }
     
-    public function reveal(Sig sig, int x, int y, int amount, SigHashPreimage txPreimage) {
+    public function reveal(Sig sig, int x, int y, SigHashPreimage txPreimage) {
         require(this.playersTurn == true);
         this.playersTurn = false;
 
@@ -80,9 +83,14 @@ contract Minesweeper {
         this.lastRevealX = x;
         this.lastRevealY = y;
 
-        require(Tx.checkPreimage(txPreimage));
+        // The custom sighash type is to enably arbitrary funding of the contracts propagation.
+        // Note: make sure the offline code to generate the preimage also aplies these flags.
+        SigHashType sigHashType = SigHash.ANYONECANPAY | SigHash.SINGLE | SigHash.FORKID;
+        require(Tx.checkPreimageSigHashType(txPreimage, sigHashType));
+
+        // Make sure the transaction contains the expected outputs.
         bytes outputScript = this.getStateScript();
-        bytes outputs = Utils.buildOutput(outputScript, amount);
+        bytes outputs = Utils.buildOutput(outputScript, this.rewardAmount);
         require(hash256(outputs) == SigHash.hashOutputs(txPreimage));
     }
 

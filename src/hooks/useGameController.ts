@@ -62,14 +62,21 @@ export default function useGameController() {
       if (clickedField.isOpened) {
         return; // Don't do anything if the field is already opened
       }
+    
+      if (clickedField.hasBomb) {
+        setGameState(GameState.GameOver);
+        openField(clickedField); // TODO: If we don't update here bombs don't get displayed for some reason.
+      } else {
+        setGameState(GameState.Pause);
+      }
       
+
       if (fieldsOpened === 0) {
         // If it's the first click, initialize the smart contract itself.
         console.log("initing smart contract");
         try {
           await initializeContract(fieldsMap);
           // Set game state to `Playing`
-          setGameState(GameState.Playing);
         } catch (error) {
           console.log("Failed initializing smart contract.")
           console.log(error);
@@ -81,22 +88,21 @@ export default function useGameController() {
       console.log("player update");
       await callContractRevealFunc(clickedField, fieldsMap);
       
+      // Once the players reveal function was called, the server updates the game state
+      // of the smart contract.
+      console.log("server updating smart contract");
+      await callContractUpdateFunc(clickedField, fieldsMap);
+
+      // Do game state updates.
       if (clickedField.hasBomb) {
-        // Handle click on field with bomb
-        // TODO: finish smart contract here and pay to player on server.
-        console.log("finishing smart contract");
         setGameState(GameState.GameOver);
       } else {
-        console.log("server updating smart contract");
-        // Once the players reveal function was called, the server updates the game state
-        // of the smart contract.
-        await callContractUpdateFunc(clickedField, fieldsMap);
+        setGameState(GameState.Playing);
       }
-
       // Open field with `useGame` handler
       openField(clickedField);
     },
-    [fieldsOpened, openField],
+    [fieldsOpened, openField]
   );
 
   // Run `setInterval` every time when `gameState` is GameState.Playing

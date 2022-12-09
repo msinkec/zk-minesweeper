@@ -80,18 +80,17 @@ export async function callContractUpdateFunc(clickedField, fieldsMap) {
   const G2Point = contract.getTypeClassByType("G2Point");
   const FQ2 = contract.getTypeClassByType("FQ2");
 
+  const neighborMineCount = clickedField.bombsAround;
+  const isMine = clickedField.hasBomb;
+
   // For the next tx, set playersTurn flag to true.
   // As it wasn't a mine also increment the score.
   let newState = {
-    successfulReveals: clickedField.isMine ? contractState.successfulReveals + 1 : contractState.successfulReveals,
+    successfulReveals: !isMine ? contractState.successfulReveals + 1 : contractState.successfulReveals,
     playersTurn: true,
     lastRevealX: contractState.lastRevealX,
     lastRevealY: contractState.lastRevealY
   };
-  
-  const neighborMineCount = clickedField.bombsAround;
-  const isMine = false;
-  
   
   let {proof, output} = await zokratesProof(
     fieldsMap.mapInt,
@@ -103,12 +102,12 @@ export async function callContractUpdateFunc(clickedField, fieldsMap) {
       abi: abi,
       provingkey: provingkey
     });
-
+  
   return web3.call(contractUtxo, rewardAmount, async (tx) => {
 
     tx.setOutput(0, (tx) => {
       let newLockingScript = undefined;
-      if (!clickedField.isMine) {
+      if (!isMine) {
         newLockingScript = contract.getNewStateScript(newState);
       } else if (newState.successfulReveals >= fieldsMap.mapMineCount) {
         const privateKey = new bsv.PrivateKey.fromWIF(PlayerPrivkey.get(Player.You));

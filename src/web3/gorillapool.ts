@@ -23,9 +23,7 @@ export class Gorillapool {
         const time = Math.max(100000, 1000 * size);
 
         try {
-            const {
-                data
-            } = await axios({
+            const headers = {
                 method: 'post',
                 url: `https://testnet-mapi.gorillapool.io/mapi/tx`,
                 data: Buffer.from(txhex, 'hex'),
@@ -35,7 +33,14 @@ export class Gorillapool {
                 },
                 timeout: time,
                 maxBodyLength: Infinity
-            });
+            }
+            
+            console.log("POST tx: ", headers.url);
+            console.log(Date.now());
+
+            const {
+                data
+            } = await axios(headers);
             
             const payload = JSON.parse(data.payload)
             if(payload.returnResult === 'success') {

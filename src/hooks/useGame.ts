@@ -229,7 +229,7 @@ export default function useGame(settings: ISettings) {
   // Main public handler for field click
   const openField = useCallback(
     async (clickedField: IField) => {
-
+      
       if (clickedField.isOpened) {
         return; // Don't do anything if the field is already opened
       }

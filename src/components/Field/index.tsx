@@ -17,7 +17,7 @@ interface IProps {
 function Field({field, fieldsMap, isSmall, gameState, onOpen, onSetFlag, onDeleteFlag}: IProps) {
   const isDisabled = gameState === GameState.Pause || gameState === GameState.GameOver;
   let label: number | string = '';
-
+  
   if (field.isOpened) {
     if (field.hasBomb) {
       label = '💣';

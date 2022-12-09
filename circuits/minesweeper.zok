@@ -16,29 +16,28 @@ def getMineCount(bool[256] mineFieldBits) -> u32 {
 }
 
 def getNeighboringMineCount(bool[256] mineFieldBits, u32 x, u32 y) -> u32 {
-    // 99999 means the neighboring field doesn't exist (in case of edges and corners).
-    u32 idxUpperLeft = x > 0 && y > 0 ? (y-1) * 15 + x - 1 : 99999;
-    u32 idxUpperCenter = y > 0 ? (y-1) * 15 + x : 99999;
-    u32 idxUpperRight = x < 14 && y > 0 ? (y-1) * 15 + x + 1 : 99999;
+    bool ul = mineFieldBits[(255 -((y-1) * 15 + x - 1)) % 255];
+    bool uc = mineFieldBits[(255 - ((y-1) * 15 + x)) % 255];
+    bool ur = mineFieldBits[(255 - ((y-1) * 15 + x + 1)) % 255];
 
-    u32 idxMiddleLeft = x > 0 ? y * 15 + x - 1 : 99999;
-    u32 idxMiddleRight = x < 14 ? y * 15 + x + 1 : 99999;
+    bool ml = mineFieldBits[(255 - (y * 15 + x - 1)) % 255];
+    bool mr = mineFieldBits[(255 - (y * 15 + x + 1)) % 255];
 
-    u32 idxLowerLeft = x > 0 && y < 14 ? (y+1) * 15 + x - 1 : 99999;
-    u32 idxLowerCenter = y < 14 ? (y+1) * 15 + x : 99999;
-    u32 idxLowerRight = x < 14 && y < 14 ? (y+1) * 15 + x + 1 : 99999;
+    bool ll = mineFieldBits[(255 - ((y+1) * 15 + x - 1)) % 255];
+    bool lc = mineFieldBits[(255 - ((y+1) * 15 + x)) % 255];
+    bool lr = mineFieldBits[(255 - ((y+1) * 15 + x + 1)) % 255];
+    
+    u32 mut sum = 0;
+    sum = if ul && x > 0 && y > 0 {sum + 1} else {sum};
+    sum = if uc && y > 0 {sum + 1} else {sum};
+    sum = if ur && x < 14 && y > 0 {sum + 1} else {sum};
+    sum = if ml && x > 0 {sum + 1} else {sum};
+    sum = if mr && x < 14 {sum + 1} else {sum};
+    sum = if ll && x > 0 && y < 14 {sum + 1} else {sum};
+    sum = if lc && y < 14 {sum + 1} else {sum};
+    sum = if lr && x < 14 && y < 14 {sum + 1} else {sum};
 
-
-    u32 ul = (idxUpperLeft != 99999) && mineFieldBits[255 - idxUpperLeft] ? 1 : 0;
-    u32 uc = (idxUpperCenter != 99999) && mineFieldBits[255 - idxUpperCenter] ? 1 : 0;
-    u32 ur = (idxUpperRight != 99999) && mineFieldBits[255 - idxUpperRight] ? 1 : 0;
-    u32 ml = (idxMiddleLeft != 99999) && mineFieldBits[255 - idxMiddleLeft] ? 1 : 0;
-    u32 mr = (idxMiddleRight != 99999) && mineFieldBits[255 - idxMiddleRight] ? 1 : 0;
-    u32 ll = (idxLowerLeft != 99999) && mineFieldBits[255 - idxLowerLeft] ? 1 : 0;
-    u32 lc = (idxLowerCenter != 99999) && mineFieldBits[255 - idxLowerCenter] ? 1 : 0;
-    u32 lr = (idxLowerRight != 99999) && mineFieldBits[255 - idxLowerRight] ? 1 : 0;
-
-    return ul + uc + ur + ml + mr + ll + lc + lr;
+    return sum;
 }
 
 def main(private field mineField, field mineFieldCommit, field targetX, field targetY, bool mineHit, field neighborMineCount) {
